@@ -13,7 +13,7 @@ Add `boot-codeina` to your `build.boot` dependencies and `require` the namespace
 
 ```clj
 (set-env! :dependencies '[[funcool/boot-codeina "X.Y.Z" :scope "test"]])
-(require '[adzerk.bootlaces :refer :all])
+(require '[funcool.boot-codeina :refer :all])
 
 (task-options!
  apidoc {:version "0.1.0"
