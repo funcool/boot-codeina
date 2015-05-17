@@ -104,7 +104,10 @@
       :type       - one of :macro, :protocol, :multimethod or :var
       :added      - the library version the var was added in
       :deprecated - the library version the var was deprecated in"
-  [file]
-  (->> (find-namespaces file)
-       (mapcat read-ns)
-       (remove :no-doc)))
+  ([path]
+   (->> (io/file path)
+        (find-namespaces)
+        (mapcat read-ns)
+        (remove :no-doc)))
+  ([path & paths]
+   (mapcat read-namespaces (cons path paths))))

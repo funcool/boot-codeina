@@ -29,14 +29,16 @@
   [path]
   (str/replace (str path) File/separator "/"))
 
+
 (defn- var-source-uri
-  [{:keys [src-uri src-uri-mapping src-uri-prefix] :as options}
-   {:keys [file line] :as var}]
-  (let [file (uri-path file)]
+  [{:keys [src-uri src-uri-mapping src-uri-prefix]}
+   {:keys [path file line]}]
+  (let [path (uri-path path)
+        file (uri-path file)]
     (str src-uri
-         (if-let [mapping-fn (get-mapping-fn src-uri-mapping file)]
+         (if-let [mapping-fn (get-mapping-fn src-uri-mapping path)]
            (mapping-fn file)
-           file)
+           path)
          (if src-uri-prefix
            (str src-uri-prefix line)))))
 

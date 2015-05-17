@@ -27,4 +27,7 @@
        :scm         {:url "https://github.com/funcool/boot-codeina"}}
  apidoc {:version +version+
          :title "Boot-Codeina"
+         :sources #{"src"}
+         :src-uri "https://github.com/funcool/boot-codeina/tree/master/"
+         :src-uri-prefix "#L"
          :description +description+})
