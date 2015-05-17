@@ -10,8 +10,8 @@
               :format :markdown
               :src-uri nil
               :src-uri-prefix nil
-              :reader 'codeina.reader.clojure/read-namespaces
-              :writer 'codeina.writer.html/write-docs})
+              :reader :clojure
+              :writer :html5})
 
 (deftask apidoc
   "Generate beautiful api documentation."
@@ -20,10 +20,10 @@
    v version VERSION     str "The project version."
    i include INCLUDE     [sym] "Include concrete namespaces."
    x exclude EXCLUDE     [sym] "Exclude concrete namespaces."
-   f format  FORMAT      kw  "Docstring format (default :markdown)."
+   f format  FORMAT      kw  "Docstring format."
    o target  OUTDIR      str "The output directory."
-   w writer  WRITER      sym "Documentation writer."
    s src-uri SRCURI      str "Source code uri"
+   w writer  WRITER      sym "Documentation writer."
    r reader  READER      sym "Source reader."]
   (fn [next-handler]
     (fn [fileset]

@@ -43,10 +43,10 @@ Options:
   -v, --version VERSION   Set the project version to VERSION.
   -i, --include INCLUDE   Conj INCLUDE onto include concrete namespaces.
   -x, --exclude EXCLUDE   Conj EXCLUDE onto exclude concrete namespaces.
-  -f, --format FORMAT     Set docstring format (default :markdown) to FORMAT.
+  -f, --format FORMAT     Set docstring format to FORMAT.
   -o, --target OUTDIR     Set the output directory to OUTDIR.
-  -w, --writer WRITER     Set documentation writer to WRITER.
   -s, --src-uri SRCURI    Set source code uri to SRCURI.
+  -w, --writer WRITER     Set documentation writer to WRITER.
   -r, --reader READER     Set source reader to READER.
 ```
 

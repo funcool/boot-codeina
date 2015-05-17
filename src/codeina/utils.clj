@@ -1,7 +1,12 @@
 (ns codeina.utils
   "Miscellaneous utility functions."
+  (:import java.net.URLEncoder)
   (:require [clojure.string :as str]
             [clojure.java.io :as io]))
+
+(defn var-id
+  [var]
+  (str "var-" (-> var name URLEncoder/encode (str/replace "%" "."))))
 
 (defn assoc-some
   "Associates a key with a value in a map, if and only if the value is not nil."

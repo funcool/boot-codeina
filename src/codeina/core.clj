@@ -1,29 +1,29 @@
 (ns codeina.core)
 
-(defn get-writer
-  [{:keys [writer] :as options}]
-  (let [writer-sym writer
-        writer-ns (symbol (namespace writer))]
+(defn- resolve-sym
+  "Given a namespace qualified symbol, try resolve
+  it and return the underlying value."
+  [s]
+  (let [ns-part (symbol (namespace s))]
     (try
-      (require writer-ns)
+      (require ns-part)
       (catch Exception e
-        (throw
-         (Exception. (str "Could not load codeina writer " writer-ns) e))))
-    (if-let [writer (resolve writer-sym)]
-      writer
-      (throw
-         (Exception. (str "Could not resolve codeina writer " writer-sym))))))
+        (throw (Exception. (str "Could not load codeina writer " s) e))))
+    (if-let [value (resolve s)]
+      value
+      (throw (Exception. (str "Could not resolve codeina writer " s))))))
 
-(defn get-reader
-  [{:keys [reader] :as options}]
-  (let [reader-sym reader
-        reader-ns (symbol (namespace reader-sym))]
-    (try
-      (require reader-ns)
-      (catch Exception e
-        (throw
-         (Exception. (str "Could not load codeina reader " reader-ns) e))))
-    (if-let [reader (resolve reader-sym)]
-      reader
-      (throw
-         (Exception. (str "Could not resolve codeina reader " reader-sym))))))
+(defmulti get-writer
+  "Get writer function."
+  :writer)
+(defmulti get-reader
+  "Get reader function."
+  :reader)
+
+(defmethod get-writer :html5
+  [options]
+  (resolve-sym 'codeina.writer.html/write-docs))
+
+(defmethod get-reader :clojure
+  [options]
+  (resolve-sym 'codeina.reader.clojure/read-namespaces))

@@ -1,79 +1,13 @@
 (ns codeina.writer.html
   "Documentation writer that outputs HTML."
-  (:import java.net.URLEncoder
-           java.io.File
-           org.pegdown.PegDownProcessor
-           org.pegdown.Extensions
-           org.pegdown.LinkRenderer
-           org.pegdown.LinkRenderer$Rendering
-           org.pegdown.ast.WikiLinkNode)
+  (:import java.io.File)
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
             [codeina.utils :as util]
+            [codeina.format :as fmt]
             [hiccup.core :refer :all]
             [hiccup.page :refer :all]
             [hiccup.element :refer :all]))
-
-(defn- var-id
-  [var]
-  (str "var-" (-> var name URLEncoder/encode (str/replace "%" "."))))
-
-(def ^:private url-regex
-  #"((https?|ftp|file)://[-A-Za-z0-9+()&@#/%?=~_|!:,.;]+[-A-Za-z0-9+()&@#/%=~_|])")
-
-(defn- add-anchors
-  [text]
-  (when text
-    (str/replace text url-regex "<a href=\"$1\">$1</a>")))
-
-(defmulti format-doc
-  "Format the docstring of a var or namespace into HTML."
-  (fn [options ns var] (:doc/format var))
-  :default :markdown)
-
-(defmethod format-doc :plaintext [_ _ metadata]
-  [:pre.plaintext (add-anchors (h (:doc metadata)))])
-
-(def ^:private pegdown
-  (PegDownProcessor.
-   (bit-or Extensions/AUTOLINKS
-           Extensions/QUOTES
-           Extensions/SMARTS
-           Extensions/STRIKETHROUGH
-           Extensions/TABLES
-           Extensions/FENCED_CODE_BLOCKS
-           Extensions/WIKILINKS
-           Extensions/DEFINITIONS
-           Extensions/ABBREVIATIONS)
-   2000))
-
-(defn- find-wikilink
-  [options ns text]
-  (let [ns-strs (map (comp str :name) (:namespaces options))]
-    (if (contains? (set ns-strs) text)
-      (str text ".html")
-      (when-let [var (util/search-vars (:namespaces options) text (:name ns))]
-        (str (namespace var) ".html#" (var-id var))))))
-
-(defn- link-renderer
-  [options ns]
-  (proxy [LinkRenderer] []
-    (render
-      ([node]
-       (if (instance? WikiLinkNode node)
-         (let [text (.getText node)]
-           (LinkRenderer$Rendering. (find-wikilink options ns text) text))
-         (proxy-super render node)))
-      ([node text]
-       (proxy-super render node text))
-      ([node url title text]
-       (proxy-super render node url title text)))))
-
-(defmethod format-doc :markdown
-  [options ns metadata]
-  [:div.markdown
-   (if-let [doc (:doc metadata)]
-     (.markdownToHtml pegdown doc (link-renderer options ns)))])
 
 (defn- ns-filename
   [namespace]
@@ -85,7 +19,7 @@
 
 (defn- var-uri
   [namespace var]
-  (str (ns-filename namespace) "#" (var-id (:name var))))
+  (str (ns-filename namespace) "#" (util/var-id (:name var))))
 
 (defn- get-mapping-fn
   [mappings path]
@@ -214,7 +148,7 @@
       (for [namespace (sort-by :name (:namespaces options))]
         [:div.namespace
          [:h3 (link-to (ns-filename namespace) (h (:name namespace)))]
-         [:div.doc (format-doc options nil (update-in namespace [:doc] util/summary))]
+         [:div.doc (fmt/format-docstring options nil (update-in namespace [:doc] util/summary))]
          [:div.index
           [:p "Public variables and functions:"]
           (unordered-list
@@ -233,9 +167,9 @@
      [:h4.deprecated "deprecated" (if (string? deprecated) (str " in " deprecated))])))
 
 (defn- var-docs [options namespace var]
-  [:div.public.anchor {:id (h (var-id (:name var)))}
+  [:div.public.anchor {:id (h (util/var-id (:name var)))}
    [:h3
-    (link-to (str "#" (var-id (:name var)))
+    (link-to (str "#" (util/var-id (:name var)))
              (h (:name var)))]
    (if-not (= (:type var) :var)
      [:h4.type (name (:type var))])
@@ -245,7 +179,7 @@
    [:div.usage
     (for [form (var-usage var)]
       [:code (h (pr-str form))])]
-   [:div.doc (format-doc options namespace var)]
+   [:div.doc (fmt/format-docstring options namespace var)]
    (if-let [members (seq (:members var))]
      [:div.members
       [:h4 "members"]
@@ -269,7 +203,7 @@
      [:section#content.namespace-docs
       [:h2#top.anchor (h (:name namespace))]
       (added-and-deprecated-docs namespace)
-      [:div.doc (format-doc options nil namespace)]
+      [:div.doc (fmt/format-docstring options nil namespace)]
       (for [var (sorted-public-vars namespace)]
         (var-docs options namespace var))]]]))
 
