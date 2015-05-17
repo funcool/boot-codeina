@@ -7,7 +7,7 @@
                  [org.pegdown/pegdown "1.4.2"]
                  [leinjacker "0.4.2"]
                  [hiccup "1.0.5"]
-                 [funcool/bootutils "0.1.0-SNAPSHOT" :scope "test"]])
+                 [funcool/bootutils "0.1.0" :scope "test"]])
 
 (require '[funcool.boot-codeina :refer :all]
          '[funcool.bootutils :refer :all])
