@@ -29,4 +29,25 @@ $ boot apidoc
 Generated HTML docs in /home/user/yourproject/doc/api
 ```
 
+
+You can get the detailed information passing `-h` parameter to the `apidoc` task:
+
+```bash
+$ boot apidoc -h
+Generate beautiful api documentation.
+
+Options:
+  -h, --help              Print this help info.
+  -t, --title TITLE       Set the project title to TITLE.
+  -d, --description DESC  Set the project description to DESC.
+  -v, --version VERSION   Set the project version to VERSION.
+  -i, --include INCLUDE   Conj INCLUDE onto include concrete namespaces.
+  -x, --exclude EXCLUDE   Conj EXCLUDE onto exclude concrete namespaces.
+  -f, --format FORMAT     Set docstring format (default :markdown) to FORMAT.
+  -o, --target OUTDIR     Set the output directory to OUTDIR.
+  -w, --writer WRITER     Set documentation writer to WRITER.
+  -s, --src-uri SRCURI    Set source code uri to SRCURI.
+  -r, --reader READER     Set source reader to READER.
+```
+
 [1]: https://github.com/boot-clj/boot
