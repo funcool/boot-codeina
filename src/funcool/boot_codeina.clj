@@ -8,9 +8,8 @@
 (def ^:private
   +defaults+ {:target "doc/api"
               :format :markdown
-              :src-uri "http://github.com/clojure/clojure/blob/master/"
-              :src-uri-prefix "#L"
-              :root   (System/getProperty "user.dir")
+              :src-uri nil
+              :src-uri-prefix nil
               :reader 'codeina.reader.clojure/read-namespaces
               :writer 'codeina.writer.html/write-docs})
 
@@ -29,7 +28,6 @@
   (fn [next-handler]
     (fn [fileset]
       (let [options (merge +defaults+ *opts*)
-            root   (System/getProperty "user.dir")
             reader-fn (core/get-reader options)
             writter-fn (core/get-writer options)
             dirs (input-dirs fileset)
