@@ -21,7 +21,6 @@ Add `boot-codeina` to your `build.boot` dependencies and `require` the namespace
          :description "MyPackage description"})
 ```
 
-
 And now, execute the `apidoc` task:
 
 ```bash
@@ -51,3 +50,10 @@ Options:
 ```
 
 [1]: https://github.com/boot-clj/boot
+
+
+## Examples ##
+
+- https://funcool.github.io/cats/latest/api/
+- https://funcool.github.io/buddy-auth/latest/api/
+- https://funcool.github.io/catacumba/latest/api/
