@@ -180,11 +180,11 @@
    (include-css "css/default.css")))
 
 (defn- project-title [project]
-  (str (:name project) " " (:version project)))
+  (str (:title project) " " (:version project)))
 
 (defn- header
   [project]
-  (let [title (format "%s Api Documentation" (:name project))]
+  (let [title (format "%s Api Documentation" (:title project))]
     [:header
      [:section.title
       [:h1 (link-to "index.html" (h title))]]
@@ -201,7 +201,7 @@
      (namespaces-menu project)
      [:section#content.namespace-index
       [:section.title-container
-       [:h2 (h (:name project))]
+       [:h2 (h (:title project))]
        [:div.doc [:p (h (:description project))]]]
       (for [namespace (sort-by :name (:namespaces project))]
         [:div.namespace
