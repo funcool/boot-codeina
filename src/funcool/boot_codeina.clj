@@ -16,18 +16,19 @@
 
 (deftask apidoc
   "Generate beautiful api documentation."
-  [t title   TITLE       str "The project title."
-   s sources SOURCES     #{str} "Sources to read."
-   d description DESC    str "The project description."
-   v version VERSION     str "The project version."
-   i include INCLUDE     [sym] "Include concrete namespaces."
-   x exclude EXCLUDE     [sym] "Exclude concrete namespaces."
-   f format  FORMAT      kw  "Docstring format."
-   o target  OUTDIR      str "The output directory."
-   n root    ROOTDIR     src "The project root directory."
-   u src-uri SRCURI      str "Source code uri"
-   w writer  WRITER      kw "Documentation writer."
-   r reader  READER      kw "Source reader."]
+  [t title          TITLE        str "The project title."
+   s sources        SOURCES      #{str} "Sources to read."
+   d description    DESC         str "The project description."
+   v version        VERSION      str "The project version."
+   i include        INCLUDE      [sym] "Include concrete namespaces."
+   x exclude        EXCLUDE      [sym] "Exclude concrete namespaces."
+   f format         FORMAT       kw  "Docstring format."
+   o target         OUTDIR       str "The output directory."
+   n root           ROOTDIR      src "The project root directory."
+   u src-uri        SRCURI       str "Source code uri"
+   p src-uri-prefix SRCURIPREFIX str "Source code uri prefix (for line anchors)"
+   w writer         WRITER       kw "Documentation writer."
+   r reader         READER       kw "Source reader."]
   (fn [next-handler]
     (fn [fileset]
       (let [options (merge +defaults+ *opts*)
