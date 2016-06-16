@@ -53,6 +53,10 @@
   [options]
   cljs-read-namespaces)
 
+(defmethod get-reader :cljc
+  [options]
+  (resolve-sym 'codeina.reader.cljc/read-namespaces))
+
 (def ^:private
   +defaults+ {:target "doc/api"
               :format :markdown
