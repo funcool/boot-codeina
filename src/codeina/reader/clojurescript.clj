@@ -11,7 +11,8 @@
   [file]
   (and (.isFile file)
        (or (-> file .getName (.endsWith ".cljs"))
-           (-> file .getName (.endsWith ".cljc")))))
+           (-> file .getName (.endsWith ".cljs"))
+           (-> file .getName (.endsWith ".cljs.hl")))))
 
 (defn- strip-parent
   [parent]
