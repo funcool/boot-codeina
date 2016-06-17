@@ -1,63 +1,51 @@
-(ns codeina.reader.clojure
-  "Read raw documentation information from Clojure source directory."
+(ns codeina.reader.cljc
+  "Read raw documentation information from Clojure(Script) source directory."
+  (:import java.io.File)
   (:require [clojure.java.io :as io]
-            [clojure.tools.namespace.find :as ns]
+            [clojure.tools.namespace.find :as find]
             [clojure.string :as str]
-            [codeina.utils :refer (assoc-some update-some correct-indent)])
-  (:import java.util.jar.JarFile))
+            [codeina.utils :refer (assoc-some update-some correct-indent)]))
 
 (defn- sorted-public-vars
+  "Return a sorted public vars from namespace."
   [namespace]
   (->> (ns-publics namespace)
        (vals)
        (sort-by (comp :name meta))))
 
 (defn- no-doc?
-  "Return true if a var contains no-doc label."
   [var]
   (let [{:keys [skip-wiki no-doc]} (meta var)]
     (or skip-wiki no-doc)))
 
-(defn- proxy?
-  "Return true if provided var has reference to proxy
-  unstance?"
-  [var]
+(defn- proxy? [var]
   (re-find #"proxy\$" (-> var meta :name str)))
 
-(defn- macro?
-  [var]
+(defn- macro? [var]
   (:macro (meta var)))
 
-(defn- multimethod?
-  [var]
+(defn- multimethod? [var]
   (instance? clojure.lang.MultiFn (var-get var)))
 
-(defn- protocol?
-  [var]
+(defn- protocol? [var]
   (let [value (var-get var)]
-    (and (map? value)
-         (not (sorted? value)) ; workaround for CLJ-1242
-         (:on-interface value))))
+    (and (map? value) (:on-interface value))))
 
-(defn- protocol-method?
-  [vars var]
+(defn- protocol-method? [vars var]
   (if-let [p (:protocol (meta var))]
     (some #{p} vars)))
 
-(defn- protocol-methods
-  [protocol vars]
+(defn- protocol-methods [protocol vars]
   (filter #(= protocol (:protocol (meta %))) vars))
 
-(defn- var-type
-  [var]
+(defn- var-type [var]
   (cond
-    (macro? var)       :macro
-    (multimethod? var) :multimethod
-    (protocol? var)    :protocol
-    :else              :var))
+   (macro? var)       :macro
+   (multimethod? var) :multimethod
+   (protocol? var)    :protocol
+   :else              :var))
 
-(defn- read-var
-  [vars var]
+(defn- read-var [vars var]
   (-> (meta var)
       (select-keys [:name :file :line :arglists :doc :dynamic
                     :added :deprecated :doc/format])
@@ -76,10 +64,11 @@
          (map (partial read-var vars))
          (sort-by (comp str/lower-case :name)))))
 
-(defn- read-ns
-  [namespace]
+(defn- read-ns [namespace]
   (try
+    ;; (println "\nDEBUG read-ns" namespace)
     (require namespace)
+    ;; (println "\nDEBUG find-ns" (find-ns namespace))
     (-> (find-ns namespace)
         (meta)
         (assoc :name namespace)
@@ -93,17 +82,12 @@
                (.getName (class e))
                (.getMessage e))))))
 
-(defn- jar-file?
-  [file]
-  (and
-   (.isFile file)
-   (-> file .getName (.endsWith ".jar"))))
-
 (defn- find-namespaces
-  [file]
-  (cond
-    (.isDirectory file) (ns/find-namespaces-in-dir file)
-    (jar-file? file)    (ns/find-namespaces-in-jarfile (JarFile. file))))
+  [^File directory]
+  ;; (println "\nDEBUG find-namespaces in" directory)
+  (let [nss (find/find-namespaces-in-dir directory)]
+    ;; (println "\nDEBUG namespaces=" nss)
+    nss))
 
 (defn read-namespaces
   "Read Clojure namespaces from a source directory (defaults to
@@ -125,8 +109,8 @@
       :type       - one of :macro, :protocol, :multimethod or :var
       :added      - the library version the var was added in
       :deprecated - the library version the var was deprecated in"
-  ([] (read-namespaces "src"))
   ([path]
+   ;; (println "\nDEBUG read-namespaces" path)
    (->> (io/file path)
         (find-namespaces)
         (mapcat read-ns)

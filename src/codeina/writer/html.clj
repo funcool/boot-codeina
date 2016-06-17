@@ -1,34 +1,84 @@
 (ns codeina.writer.html
   "Documentation writer that outputs HTML."
-  (:import java.io.File)
+  (:use [hiccup core page element])
+  (:import [java.net URLEncoder]
+           [java.io File]
+           [org.pegdown PegDownProcessor Extensions LinkRenderer LinkRenderer$Rendering]
+           [org.pegdown.ast WikiLinkNode])
   (:require [clojure.java.io :as io]
             [clojure.string :as str]
-            [codeina.utils :as util]
-            [codeina.format :as fmt]
-            [hiccup.core :refer :all]
-            [hiccup.page :refer :all]
-            [hiccup.element :refer :all]))
+            [codeina.utils :as util]))
 
-(defn- ns-filename
-  [namespace]
+(defn- var-id [var]
+  (str "var-" (-> var name URLEncoder/encode (str/replace "%" "."))))
+
+(def ^:private url-regex
+  #"((https?|ftp|file)://[-A-Za-z0-9+()&@#/%?=~_|!:,.;]+[-A-Za-z0-9+()&@#/%=~_|])")
+
+(defn- add-anchors [text]
+  (if text
+    (str/replace text url-regex "<a href=\"$1\">$1</a>")))
+
+(defmulti format-doc
+  "Format the docstring of a var or namespace into HTML."
+  (fn [project ns var] (:doc/format var))
+  :default :markdown)
+
+(defmethod format-doc :plaintext [_ _ metadata]
+  [:pre.plaintext (add-anchors (h (:doc metadata)))])
+
+(def ^:private pegdown
+  (PegDownProcessor.
+   (bit-or Extensions/AUTOLINKS
+           Extensions/QUOTES
+           Extensions/SMARTS
+           Extensions/STRIKETHROUGH
+           Extensions/TABLES
+           Extensions/FENCED_CODE_BLOCKS
+           Extensions/WIKILINKS
+           Extensions/DEFINITIONS
+           Extensions/ABBREVIATIONS)
+   2000))
+
+(defn- find-wikilink [project ns text]
+  (let [ns-strs (map (comp str :name) (:namespaces project))]
+    (if (contains? (set ns-strs) text)
+      (str text ".html")
+      (if-let [var (util/search-vars (:namespaces project) text (:name ns))]
+        (str (namespace var) ".html#" (var-id var))))))
+
+(defn- link-renderer [project ns]
+  (proxy [LinkRenderer] []
+    (render
+      ([node]
+         (if (instance? WikiLinkNode node)
+           (let [text (.getText node)]
+             (LinkRenderer$Rendering. (find-wikilink project ns text) text))
+           (proxy-super render node)))
+      ([node text]
+         (proxy-super render node text))
+      ([node url title text]
+         (proxy-super render node url title text)))))
+
+(defmethod format-doc :markdown [project ns metadata]
+  [:div.markdown
+   (if-let [doc (:doc metadata)]
+     (.markdownToHtml pegdown doc (link-renderer project ns)))])
+
+(defn- ns-filename [namespace]
   (str (:name namespace) ".html"))
 
-(defn- ns-filepath
-  [output-dir namespace]
+(defn- ns-filepath [output-dir namespace]
   (str output-dir "/" (ns-filename namespace)))
 
-(defn- var-uri
-  [namespace var]
-  (str (ns-filename namespace) "#" (util/var-id (:name var))))
+(defn- var-uri [namespace var]
+  (str (ns-filename namespace) "#" (var-id (:name var))))
 
-(defn- get-mapping-fn
-  [mappings path]
+(defn- get-mapping-fn [mappings path]
   (some (fn [[re f]] (if (re-find re path) f)) mappings))
 
-(defn- uri-path
-  [path]
+(defn- uri-path [path]
   (str/replace (str path) File/separator "/"))
-
 
 (defn- var-source-uri
   [{:keys [src-uri src-uri-mapping src-uri-prefix]}
@@ -42,32 +92,27 @@
          (if src-uri-prefix
            (str src-uri-prefix line)))))
 
-(defn- split-ns
-  [namespace]
+(defn- split-ns [namespace]
   (str/split (str namespace) #"\."))
 
-(defn- namespace-parts
-  [namespace]
+(defn- namespace-parts [namespace]
   (->> (split-ns namespace)
        (reductions #(str %1 "." %2))
        (map symbol)))
 
-(defn- add-depths
-  [namespaces]
+(defn- add-depths [namespaces]
   (->> namespaces
        (map (juxt identity (comp count split-ns)))
        (reductions (fn [[_ ds] [ns d]] [ns (cons d ds)]) [nil nil])
        (rest)))
 
-(defn- add-heights
-  [namespaces]
+(defn- add-heights [namespaces]
   (for [[ns ds] namespaces]
     (let [d (first ds)
           h (count (take-while #(not (or (= d %) (= (dec d) %))) (rest ds)))]
       [ns d h])))
 
-(defn- add-branches
-  [namespaces]
+(defn- add-branches [namespaces]
   (->> (partition-all 2 1 namespaces)
        (map (fn [[[ns d0 h] [_ d1 _]]] [ns d0 h (= d0 d1)]))))
 
@@ -96,8 +141,8 @@
        [:span.top {:style (str "height: " height "px;")}]
        [:span.bottom]])))
 
-(defn- namespaces-menu [options & [current]]
-  (let [namespaces (:namespaces options)
+(defn- namespaces-menu [project & [current]]
+  (let [namespaces (:namespaces project)
         ns-map     (index-by :name namespaces)]
     [:div#namespaces.sidebar
      [:h3 (link-to "index.html" [:span.inner "Namespaces"])]
@@ -111,46 +156,57 @@
               [:li {:class class} (link-to (ns-filename ns) inner)])
             [:li {:class class} [:div.no-link inner]])))]]))
 
-(defn- sorted-public-vars
-  [namespace]
+(defn- sorted-public-vars [namespace]
   (sort-by (comp str/lower-case :name) (:publics namespace)))
 
-(def ^{:private true}
-  default-includes
+(defn- vars-menu [namespace]
+  [:div#vars.sidebar
+   [:h3 (link-to "#top" [:span.inner "Public Vars"])]
+   [:ul
+    (for [var (sorted-public-vars namespace)]
+      (list*
+       [:li.depth-1
+        (link-to (var-uri namespace var) [:div.inner [:span (h (:name var))]])]
+       (for [mem (:members var)]
+         (let [branch? (not= mem (last (:members var)))
+               class   (if branch? "depth-2 branch" "depth-2")
+               inner   [:div.inner (ns-tree-part 0) [:span (h (:name mem))]]]
+           [:li {:class class}
+            (link-to (var-uri namespace mem) inner)]))))]])
+
+(def ^{:private true} default-includes
   (list
    [:meta {:charset "UTF-8"}]
    (include-css "css/default.css")))
 
-(defn- project-title
-  [options]
-  (str (:title options) " " (:version options)))
+(defn- project-title [project]
+  (str (:title project) " " (:version project)))
 
 (defn- header
-  [options]
-  (let [title (format "%s Api Documentation" (:title options))]
+  [project]
+  (let [title (format "%s Api Documentation" (:title project))]
     [:header
      [:section.title
       [:h1 (link-to "index.html" (h title))]]
-      [:small "Version: " (:version options)]]))
+      [:small "Version: " (:version project)]]))
 
-(defn- index-page
-  [options]
+(defn- index-page [project]
   (html5
    [:head
     default-includes
-    [:title (h (project-title options)) " API documentation"]]
+    [:title (h (project-title project)) " API documentation"]]
    [:body
-    (header options)
+    (header project)
     [:section.container
-     (namespaces-menu options)
+     (namespaces-menu project)
      [:section#content.namespace-index
       [:section.title-container
-       [:h2 (h (:title options))]
-       [:div.doc [:p (h (:description options))]]]
-      (for [namespace (sort-by :name (:namespaces options))]
+       [:h2 (h (:title project))]
+       [:div.doc [:p (h (:description project))]]]
+      (for [namespace (sort-by :name (:namespaces project))]
         [:div.namespace
          [:h3 (link-to (ns-filename namespace) (h (:name namespace)))]
-         [:div.doc (fmt/format-docstring options nil (update-in namespace [:doc] util/summary))]
+         [:div.doc (format-doc project nil (update-in namespace [:doc] util/summary))]
          [:div.index
           [:p "Public variables and functions:"]
           (unordered-list
@@ -168,10 +224,10 @@
    (if-let [deprecated (:deprecated var)]
      [:h4.deprecated "deprecated" (if (string? deprecated) (str " in " deprecated))])))
 
-(defn- var-docs [options namespace var]
-  [:div.public.anchor {:id (h (util/var-id (:name var)))}
+(defn- var-docs [project namespace var]
+  [:div.public.anchor {:id (h (var-id (:name var)))}
    [:h3
-    (link-to (str "#" (util/var-id (:name var)))
+    (link-to (str "#" (var-id (:name var)))
              (h (:name var)))]
    (if-not (= (:type var) :var)
      [:h4.type (name (:type var))])
@@ -181,60 +237,60 @@
    [:div.usage
     (for [form (var-usage var)]
       [:code (h (pr-str form))])]
-   [:div.doc (fmt/format-docstring options namespace var)]
+   [:div.doc (format-doc project namespace var)]
    (if-let [members (seq (:members var))]
      [:div.members
       [:h4 "members"]
       [:div.inner
-       (let [options (dissoc options :src-uri)]
-         (map (partial var-docs options namespace) members))]])
-   (if (:src-uri options)
-     (if (:file var)
-       [:div.src-link (link-to (var-source-uri options var) "view source")]
+       (let [project (dissoc project :src-uri)]
+         (map (partial var-docs project namespace) members))]])
+   (if (:src-uri project)
+     (if (:path var)
+       [:div.src-link (link-to (var-source-uri project var) "view source")]
        (println "Could not generate source link for" (:name var))))])
 
-(defn- namespace-page [options namespace]
+(defn- namespace-page [project namespace]
   (html5
    [:head
     default-includes
     [:title (h (:name namespace)) " documentation"]]
    [:body
-    (header options)
+    (header project)
     [:section.container
-     (namespaces-menu options namespace)
+     (namespaces-menu project namespace)
+     ;; (vars-menu namespace)
      [:section#content.namespace-docs
       [:h2#top.anchor (h (:name namespace))]
       (added-and-deprecated-docs namespace)
-      [:div.doc (fmt/format-docstring options nil namespace)]
+      [:div.doc (format-doc project nil namespace)]
       (for [var (sorted-public-vars namespace)]
-        (var-docs options namespace var))]]]))
+        (var-docs project namespace var))]]]))
 
-(defn- copy-resource!
-  [^String output-dir src dest]
+(defn- copy-resource [output-dir src dest]
   (io/copy (io/input-stream (io/resource src))
            (io/file output-dir dest)))
 
-(defn- mkdirs!
-  [^String output-dir & dirs]
+(defn- mkdirs [output-dir & dirs]
   (doseq [dir dirs]
     (.mkdirs (io/file output-dir dir))))
 
-(defn- write-index!
-  [^String output-dir options]
-  (spit (io/file output-dir "index.html") (index-page options)))
+(defn- write-index
+  [output-dir project]
+  (spit (io/file output-dir "index.html") (index-page project)))
 
-(defn- write-namespaces!
-  [^String output-dir {:keys [namespaces] :as options}]
-  (doseq [namespace namespaces]
+(defn- write-namespaces
+  [output-dir project]
+  (doseq [namespace (:namespaces project)]
     (spit (ns-filepath output-dir namespace)
-          (namespace-page options namespace))))
+          (namespace-page project namespace))))
 
 (defn write-docs
   "Take raw documentation info and turn it into formatted HTML."
-  [{:keys [target namespaces] :as options}]
-  (mkdirs! target "css")
-  (copy-resource! target "codeina/css/default.css" "css/default.css")
-  (write-index! target options)
-  (write-namespaces! target options)
+  [project]
+  (doto (:target project)
+    (mkdirs "css")
+    (copy-resource "codeina/css/default.css" "css/default.css")
+    (write-index project)
+    (write-namespaces project))
   (println "Generated HTML docs in"
-           (.getAbsolutePath (io/file target))))
+           (.getAbsolutePath (io/file (:target project)))))

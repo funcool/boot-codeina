@@ -1,13 +1,14 @@
 (set-env!
  :resource-paths #{"src" "resources"}
- :dependencies '[[boot/core "2.0.0-rc14" :scope "provided"]
-                 [org.clojure/clojure "1.7.0-beta3" :scope "provided"]
-                 [org.clojure/clojurescript "0.0-3269"]
-                 [org.clojure/tools.namespace "0.2.10"]
+ :dependencies '[[boot/core "2.5.5" :scope "provided"]
+                 [org.clojure/clojure "1.7.0" :scope "provided"]
+                 [org.clojure/clojurescript "1.7.228" :scope "provided"]
+                 [org.clojure/tools.namespace "0.3.0-alpha3"]
                  [org.pegdown/pegdown "1.4.2"]
                  [leinjacker "0.4.2"]
                  [hiccup "1.0.5"]
-                 [funcool/bootutils "0.1.0" :scope "test"]])
+                 [funcool/bootutils "0.2.0" :scope "test"]
+                 [adzerk/bootlaces "0.1.13" :scope "test"]])
 
 (require '[funcool.boot-codeina :refer :all]
          '[funcool.bootutils :refer :all])
